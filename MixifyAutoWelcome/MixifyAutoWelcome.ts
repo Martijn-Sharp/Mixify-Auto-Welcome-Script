@@ -43,7 +43,7 @@ if (me === dj) {
                     console.log("New guest is: " + users[i].innerHTML);
 
                     msg = msgList[Math.floor(Math.random() * msgList.length)];  /* Set random msg from msgList */
-                    fc().fc_sendChat(msg + users[i].innerHTML.trim() + "!", dataString); /* Sends msg to chat */
+                    fc().fc_sendChat(msg + users[i].innerHTML.trim() + "!", dataString.split("=")[1]); /* Sends msg to chat */
 
                     session.push(users[i].innerHTML.trim());  /* Mark user as the one that already visited the stream */
                 }
