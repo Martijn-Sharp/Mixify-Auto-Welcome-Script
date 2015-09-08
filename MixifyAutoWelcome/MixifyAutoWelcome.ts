@@ -27,6 +27,16 @@ const welcomeGreetings: Array<string> = ["Welcome {0}!", "Ez {0}!", "Yo {0}!", "
  */
 const welcomeBackGreetings: Array<string> = ["Welcome back {0}"];
 
+/**
+ * The minimum amount of time (in milliseconds) before a greeting gets send
+ */
+const greetingDelay: number = 2000;
+
+/**
+ * The timespan (in milliseconds) in which the greeting will be send, after the delay
+ */
+const greetingMaxTimespan: number = 10000;
+
 class UserCollection {
     private users: Array<User> = [];
     disallowedUsers: Array<string> = [];
@@ -65,16 +75,34 @@ class User {
     constructor(id: string, name: string) {
         this.id = id;
         this.name = name;
+        this.active = true;
     }
 
     id: string;
 
     name: string;
 
+    active: boolean;
+
     greet(greetings: Array<string>): void {
-        logToConsole("Greeting {0} ({1})".format(this.name, this.id));
-        var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-        sendChatMessage(greetingMessage.format(this.name));
+        var timeout: number = greetingDelay + (Math.random() * greetingMaxTimespan);
+        logToConsole("About to greet in {0} ms".format(timeout.toString()));
+        window.setTimeout(() => {
+            if (this.isStillInRoom()) {
+                logToConsole("Greeting {0} ({1})".format(this.name, this.id));
+                var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
+                sendChatMessage(greetingMessage.format(this.name));
+            }
+        }, timeout);
+    }
+
+    isStillInRoom(): boolean {
+        var searchResult = $('#avatar_{0}'.format(this.id));
+        if (searchResult.length === 0) {
+            this.active = false;
+        }
+
+        return searchResult.length > 0;
     }
 }
 
