@@ -29,6 +29,11 @@ const welcomeGreetings: Array<string> = ["Welcome {0}!", "Ez {0}!", "Yo {0}!", "
 const welcomeBackGreetings: Array<string> = ["Welcome back {0}"];
 
 /**
+ * Ignore these users by name
+ */
+const ignoredUsers: Array<string> = ["Guest"];
+
+/**
  * The minimum amount of time (in milliseconds) before a greeting gets send
  */
 const greetingDelay: number = 2000;
@@ -36,13 +41,13 @@ const greetingDelay: number = 2000;
 /**
  * The timespan (in milliseconds) in which the greeting will be send, after the delay
  */
-const greetingMaxTimespan: number = 10000;
+const greetingMaxTimespan: number = 20000;
 
 /**
  * Collection class for users
  */
 class UserCollection {
-    private users: Array<User> = [];
+    users: Array<User> = [];
     disallowedUsers: Array<string> = [];
 
     /**
@@ -51,7 +56,7 @@ class UserCollection {
      */
     add(user: User): void {
         logToConsole("Trying to add {0}".format(user.name));
-        if (this.userIsAllowed(user.name)) {
+        if (this.userIsAllowed(user)) {
             if (!this.userExists(user.id)) {
                 this.users.push(user);
                 logToConsole("Succesfully added {0} ({1})".format(user.name, user.id));
@@ -65,12 +70,14 @@ class UserCollection {
     }
 
     /**
-     * Check if an user is allowed, by name
+     * Check if an user is allowed
      * @param name Name of the user
      * @returns { User is allowed } 
      */
-    private userIsAllowed(name: string): boolean {
-        return $.inArray(name, this.disallowedUsers) === -1;
+    private userIsAllowed(user: User): boolean {
+        var userAllowedByName: boolean = $.inArray(user.name, this.disallowedUsers) === -1;
+        var userAllowedById: boolean = $.inArray(user.id, this.disallowedUsers) === -1;
+        return userAllowedByName && userAllowedById;
     }
 
     /**
@@ -157,26 +164,22 @@ if (!String.prototype.format) {
     };
 }
 
-// Determine who the DJ is, and who you are
-// TODO Find a better way to determine this
-var dj: string = $("#marqueeTitle")[0].innerHTML.replace('</h1>', '').replace('<h1>', '').trim(); /*Current DJ name*/
-var me: string = $("ul#userDropDown li:eq(2) a").text().trim();  /* Your name on Mixify */
-
-// Initialize a new UserCollection and set the disallowed user names
-var users: UserCollection = new UserCollection();
-users.disallowedUsers = ["Guest", dj];
-
+// Initialize a new UserCollection
+var userList: UserCollection = new UserCollection();
 var url: string;
 var dataString: string;
 
-// If you are on your own stream script is running
-if (me === dj) {
+// Run the script only if you're streaming
+if ($('#eventBroadcaster').length > 0) {
+    // Add ignored users and yourself
+    userList.disallowedUsers = ignoredUsers;
+    userList.disallowedUsers.push($('body').attr('data-user-id'));
+
     // Getting url to call AJAX
     var queryString = $("#specatorsDockItem").attr("data-querystring");
     url = "http://www.mixify.com/room/spectators/cache/1/?" + queryString;
     dataString = queryString.split("=")[1];
-
-    // TODO This shouldn't be needed, change to check on all current avatars, add them w/o greeting them
+    
     if (sessionStorage.getItem("active") === null) {  /* Was this stream refreshed? */
         sessionStorage.setItem("active", "true");   /* You entered the stream for the first time */
     } else {
@@ -184,29 +187,25 @@ if (me === dj) {
     }
     
     // Everytime the DOM tree gets modified, fire this event
-    // TODO Use NodeInserted and NodeRemoved and subsequent actions
-    $('#avatarContainer').bind("DOMSubtreeModified", (e) => {
+    // TODO Add NodeRemoved to detect a user that leaves
+    $('#avatarContainer').bind("DOMNodeInserted", (e) => {
         var element = $(e.target);
         // Only continue if th element that is being added has the 'avatar' class
         if (element.attr("class") === "avatar") {
+            // Get the ID
             var id = element.attr("id").split("_")[1];
             var querystring = element.attr("data-querystring");
 
-            // Get data from the user api
-            jQuery.ajaxSetup({ async: false });
-            var data = jQuery.get("http://www.mixify.com/user/info-basic/?{0}".format(querystring));
-            var responseHtml = $(data.responseText);
-
-            // Search the response data for the username and initialize a new user
-            var username = $(responseHtml).find('.username')[0].innerHTML;
-            users.add(new User(id, username));
+            // Get the username
+            var username = getUsernameFromUserData(querystring);
+            userList.add(new User(id, username));
         }
     });
 }
 
 /**
  * Retrieve all attendees
- * @todo Make return a collection of users instead
+ * @todo Make it return a collection of users instead
  */
 function retrieveAttendees(): void {
     // Wait for fc() to be available
@@ -226,7 +225,7 @@ function retrieveAttendees(): void {
             var jqueryElement = $(element);
             var username = jqueryElement.find('.username')[0].innerHTML;
             var id = jqueryElement.find('.bt-wrapper').attr('data-uuid');
-            users.add(new User(id, username));
+            userList.add(new User(id, username));
         });
     }
 }
@@ -248,4 +247,34 @@ function logToConsole(message?: any, ...optionalParams: any[]): void {
     if (debugMode) {
         console.log(message, optionalParams);
     }
+}
+
+/**
+ * Get the username from querying the user data
+ * @param query query string
+ * @returns { Username } 
+ */
+function getUsernameFromUserData(query: string): string {
+    // Get the user data
+    var data = getUserData(query);
+
+    // Parse the response for the username
+    var responseText = $(data.responseText);
+    var usernameElement = $(responseText).find('.username');
+    if (usernameElement.length === 0) {
+        logToConsole("No username found for user using query {0}".format(query));
+    }
+
+    return usernameElement[0].innerHTML;
+}
+
+/**
+ * Gets the user data with a query string
+ * @param query query string
+ * @returns { GET response } 
+ */
+function getUserData(query: string): JQueryXHR {
+    // Get data from the user api
+    jQuery.ajaxSetup({ async: false });
+    return jQuery.get("http://www.mixify.com/user/info-basic/?{0}".format(query));
 }
