@@ -10,6 +10,14 @@
 // @description This script can be used on Mixify.com while streaming your DJ set. The main reason why I created this script is that I couldn't see every single person who enters the stream so I thought it could be nice if a script can announce in chat who entered the stream with a warm welcome message.
 // ==/UserScript==
 
+enum FormatNameOptions {
+    CapitalizeOnlyFirstChar,
+    Lowercased,
+    RemoveUnderscores,
+    UseFirstOfTwoWords,
+    UseLongestOfThreeOrMoreWords
+}
+
 // TODO Split settings and implementation scripts
 /**
  * Turn debug mode on/off
@@ -20,13 +28,21 @@ const debugMode: boolean = true;
  * A collection of welcome greetings
  * {0} = name of the user
  */
-const welcomeGreetings: Array<string> = ["Welcome {0}!", "Ez {0}!", "Yo {0}!", "Greetings {0}!", "Sup {0}!", "Hey {0}!", "Hi {0}!", "Whazzup {0}!", "Hello {0}!"];
+const welcomeGreetings: Array<IGreeting> = [
+    { message: "Hey {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
+    { message: "hey {0}", formatOption: FormatNameOptions.Lowercased },
+    { message: "sup {0}", formatOption: FormatNameOptions.Lowercased },
+    { message: "oi {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
+    { message: "Welcome {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
+    { message: "hello {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
+    { message: "ayy {0}", formatOption: FormatNameOptions.Lowercased }
+];
 
 /**
  * A collection of welcome back greetings
  * {0} = name of the user
  */
-const welcomeBackGreetings: Array<string> = ["Welcome back {0}"];
+const welcomeBackGreetings: Array<IGreeting> = [{ message: "Welcome back {0}" }];
 
 /**
  * Ignore these users by name
@@ -41,7 +57,12 @@ const greetingDelay: number = 2000;
 /**
  * The timespan (in milliseconds) in which the greeting will be send, after the delay
  */
-const greetingMaxTimespan: number = 20000;
+const greetingMaxTimespan: number = 18000;
+
+/**
+ * Default name formatting options
+ */
+const defaultFormatOptions: Array<FormatNameOptions> = [FormatNameOptions.RemoveUnderscores, FormatNameOptions.UseFirstOfTwoWords, FormatNameOptions.UseLongestOfThreeOrMoreWords];
 
 /**
  * Collection class for users
@@ -62,7 +83,8 @@ class UserCollection {
                 logToConsole("Succesfully added {0} ({1})".format(user.name, user.id));
                 user.greet(welcomeGreetings);
             } else {
-                user.greet(welcomeBackGreetings);
+                // TODO: Finish other code first
+                //user.greet(welcomeBackGreetings);
             }
         } else {
             logToConsole("{0} is not allowed to be added".format(user.name));
@@ -116,7 +138,7 @@ class User {
      * Greets an user
      * @param greetings Array of possible greetings
      */
-    greet(greetings: Array<string>): void {
+    greet(greetings: Array<IGreeting>): void {
         // Determine timeout in ms
         var timeout: number = greetingDelay + (Math.random() * greetingMaxTimespan);
         window.setTimeout(() => {
@@ -126,7 +148,16 @@ class User {
 
                 // Pick a greeting and send it
                 var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-                sendChatMessage(greetingMessage.format(this.name));
+                var outputName: string = this.name.trim();
+                for (let option of defaultFormatOptions) {
+                    outputName = formatName(outputName, option);
+                }
+
+                if (greetingMessage.formatOption) {
+                    outputName = formatName(outputName, greetingMessage.formatOption);
+                }
+
+                sendChatMessage(greetingMessage.message.format(outputName));
             }
         }, timeout);
     }
@@ -143,6 +174,11 @@ class User {
 
         return searchResult.length > 0;
     }
+}
+
+interface IGreeting {
+    message: string;
+    formatOption?: FormatNameOptions;
 }
 
 /**
@@ -277,4 +313,51 @@ function getUserData(query: string): JQueryXHR {
     // Get data from the user api
     jQuery.ajaxSetup({ async: false });
     return jQuery.get("http://www.mixify.com/user/info-basic/?{0}".format(query));
+}
+
+function formatName(name: string, option: FormatNameOptions) : string {
+    switch (option) {
+        case FormatNameOptions.CapitalizeOnlyFirstChar:
+            return capitalizeFirstCharOnly(name);
+        case FormatNameOptions.Lowercased:
+            return name.toLowerCase();
+        case FormatNameOptions.RemoveUnderscores:
+            return name.replace("_", " ");
+        case FormatNameOptions.UseFirstOfTwoWords:
+            return useFirstOfTwoWords(name);
+        case FormatNameOptions.UseLongestOfThreeOrMoreWords:
+            return useLongestOfThreeOrMoreWords(name);
+        default:
+            return name;
+    }
+}
+
+function capitalizeFirstCharOnly(name: string): string {
+    var lowered = name.toLowerCase();
+    return lowered[0].toUpperCase() + lowered.substring(1);
+}
+
+function useFirstOfTwoWords(name: string) : string {
+    var splitted = name.split(" ").filter(Boolean);
+    if (splitted.length === 2) {
+        return splitted[0];
+    }
+
+    return name;
+}
+
+function useLongestOfThreeOrMoreWords(name: string): string {
+    var splitted = name.split(" ").filter(Boolean);
+    if (splitted.length > 2) {
+        var longestWord: string = "";
+        for (let word of splitted) {
+            if (word.length > longestWord.length) {
+                longestWord = word;
+            }
+        }
+
+        return longestWord;
+    }
+
+    return name;
 }
