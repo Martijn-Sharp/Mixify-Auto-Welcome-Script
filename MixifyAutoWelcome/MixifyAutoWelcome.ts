@@ -2,7 +2,7 @@
 /// <reference path="Typings/mixify.d.ts" />
 
 // ==UserScript==
-// @name        Fic's Mixify Auto Welcome Script
+// @name        Fic's Mixify Auto Welcome Script (Martijn Remix)
 // @namespace   Booth
 // @include     http://www.mixify.com/*/live/*
 // @version     1.7.2
@@ -14,6 +14,7 @@ enum FormatNameOptions {
     CapitalizeOnlyFirstChar,
     Lowercased,
     RemoveUnderscores,
+    Trim,
     UseFirstOfTwoWords,
     UseLongestOfThreeOrMoreWords
 }
@@ -33,9 +34,11 @@ const welcomeGreetings: Array<IGreeting> = [
     { message: "hey {0}", formatOption: FormatNameOptions.Lowercased },
     { message: "sup {0}", formatOption: FormatNameOptions.Lowercased },
     { message: "oi {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "Welcome {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
+    { message: "Greetings, {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
     { message: "hello {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "ayy {0}", formatOption: FormatNameOptions.Lowercased }
+    { message: "ayy {0}!", formatOption: FormatNameOptions.Lowercased },
+    { message: "avast thee scurvy knave, {0}", formatOption: FormatNameOptions.Lowercased },
+    { message: "Ermagerd! It's {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
 ];
 
 /**
@@ -62,7 +65,7 @@ const greetingMaxTimespan: number = 18000;
 /**
  * Default name formatting options
  */
-const defaultFormatOptions: Array<FormatNameOptions> = [FormatNameOptions.RemoveUnderscores, FormatNameOptions.UseFirstOfTwoWords, FormatNameOptions.UseLongestOfThreeOrMoreWords];
+const defaultFormatOptions: Array<FormatNameOptions> = [FormatNameOptions.Trim, FormatNameOptions.RemoveUnderscores, FormatNameOptions.UseFirstOfTwoWords, FormatNameOptions.UseLongestOfThreeOrMoreWords];
 
 /**
  * Collection class for users
@@ -148,7 +151,7 @@ class User {
 
                 // Pick a greeting and send it
                 var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-                var outputName: string = this.name.trim();
+                var outputName: string = this.name;
                 for (let option of defaultFormatOptions) {
                     outputName = formatName(outputName, option);
                 }
@@ -318,11 +321,13 @@ function getUserData(query: string): JQueryXHR {
 function formatName(name: string, option: FormatNameOptions) : string {
     switch (option) {
         case FormatNameOptions.CapitalizeOnlyFirstChar:
-            return capitalizeFirstCharOnly(name);
+            return name[0].toUpperCase() + name.substring(1).toLowerCase();
         case FormatNameOptions.Lowercased:
             return name.toLowerCase();
         case FormatNameOptions.RemoveUnderscores:
             return name.replace("_", " ");
+        case FormatNameOptions.Trim:
+            return name.replace('-', ' ').replace('=', ' ').replace('.', '').trim();
         case FormatNameOptions.UseFirstOfTwoWords:
             return useFirstOfTwoWords(name);
         case FormatNameOptions.UseLongestOfThreeOrMoreWords:
@@ -330,11 +335,6 @@ function formatName(name: string, option: FormatNameOptions) : string {
         default:
             return name;
     }
-}
-
-function capitalizeFirstCharOnly(name: string): string {
-    var lowered = name.toLowerCase();
-    return lowered[0].toUpperCase() + lowered.substring(1);
 }
 
 function useFirstOfTwoWords(name: string) : string {
