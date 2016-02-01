@@ -12,9 +12,7 @@
 
 enum FormatNameOptions {
     CapitalizeOnlyFirstChar,
-    Lowercased,
-    UseFirstOfTwoWords,
-    UseLongestOfThreeOrMoreWords
+    Lowercased
 }
 
 enum NameImportanceOptions {
@@ -55,9 +53,6 @@ var greetingDelay: number = 2000;
 
 /** The timespan (in milliseconds) in which the greeting will be send, after the delay */
 var greetingMaxTimespan: number = 18000;
-
-/** Default name formatting options */
-var defaultFormatOptions: Array<FormatNameOptions> = [FormatNameOptions.UseFirstOfTwoWords, FormatNameOptions.UseLongestOfThreeOrMoreWords];
 
 /** Characters that can be removed from a name */
 var trimmableCharacters: Array<string> = ["-", "_", "=", ".", ":", "[", "]", "<", ">" ];
@@ -146,17 +141,7 @@ class User {
 
                 // Pick a greeting and send it
                 var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-                var outputName: string = this.name;
-                for (let option of defaultFormatOptions) {
-                    //outputName = formatName(outputName, option);
-                    outputName = formatName(new Name(outputName), option);
-                }
-
-                if (greetingMessage.formatOption) {
-                    //outputName = formatName(outputName, greetingMessage.formatOption);
-                    outputName = formatName(new Name(outputName), greetingMessage.formatOption);
-                }
-
+                var outputName: string = formatName(new Name(this.name), greetingMessage.formatOption);
                 sendChatMessage(greetingMessage.message.format(outputName));
             }
         }, timeout);
@@ -441,22 +426,17 @@ function getUserData(query: string): JQueryXHR {
 ///////////////////////////////////////////////////////////
 /////                  NAME FORMATTING                /////
 ///////////////////////////////////////////////////////////
-function formatName(name: IName, option: FormatNameOptions): string {
+function formatName(name: IName, option?: FormatNameOptions): string {
     // Get all the parts that we'll work with
     var nameParts = getSignificantNameParts(name);
-
-    // TODO: Create new code, this is all legacy
-    // Join all parts and continue like the old way
+    
+    // Join all parts
     var nameAsString = nameParts.map(x => x.value).join(" ");
     switch (option) {
         case FormatNameOptions.CapitalizeOnlyFirstChar:
             return nameAsString[0].toUpperCase() + nameAsString.substring(1).toLowerCase();
         case FormatNameOptions.Lowercased:
             return nameAsString.toLowerCase();
-        case FormatNameOptions.UseFirstOfTwoWords:
-            return useFirstOfTwoWords(nameAsString);
-        case FormatNameOptions.UseLongestOfThreeOrMoreWords:
-            return useLongestOfThreeOrMoreWords(nameAsString);
         default:
             return nameAsString;
     }
@@ -495,31 +475,6 @@ function getSignificantNameParts(name: IName): INamePart[] {
     return name.parts.filter(value => value.importance === NameImportanceOptions.None);
 }
 
-function useFirstOfTwoWords(name: string) : string {
-    var splitted = name.split(" ").filter(Boolean);
-    if (splitted.length === 2) {
-        return splitted[0];
-    }
-
-    return name;
-}
-
-function useLongestOfThreeOrMoreWords(name: string): string {
-    var splitted = name.split(" ").filter(Boolean);
-    if (splitted.length > 2) {
-        var longestWord: string = "";
-        for (let word of splitted) {
-            if (word.length > longestWord.length) {
-                longestWord = word;
-            }
-        }
-
-        return longestWord;
-    }
-
-    return name;
-}
-
 ///////////////////////////////////////////////////////////
 /////                  GENERAL STUFF                  /////
 ///////////////////////////////////////////////////////////
@@ -531,11 +486,11 @@ function useLongestOfThreeOrMoreWords(name: string): string {
 function textIsUppercase(text: string): boolean {
     var position: number = 0;
     var character: string;
-    while (position <= text.length) {
+    while (position < text.length) {
         character = text.charAt(position);
 
         // If any character is a numeric, or matches a lowercase, then the text isn't fully uppercase
-        if (character >= '0' && character <= '9' || character === character.toLowerCase()) {
+        if ((character >= '0' && character <= '9') || character === character.toLowerCase()) {
             return false;
         }
 
@@ -553,7 +508,7 @@ function textIsUppercase(text: string): boolean {
 function trimText(text: string, trimCharacters: string[]) : string {
     var processedName: string = text;
     for (let trimCharacter of trimCharacters) {
-        processedName = processedName.replace(trimCharacter, " ");
+        processedName = processedName.split(trimCharacter).join(" ");
     }
 
     // Replace trailing numerics (regex) and trim
