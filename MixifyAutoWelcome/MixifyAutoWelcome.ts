@@ -10,11 +10,6 @@
 // @description This script can be used on Mixify.com while streaming your DJ set. The main reason why I created this script is that I couldn't see every single person who enters the stream so I thought it could be nice if a script can announce in chat who entered the stream with a warm welcome message.
 // ==/UserScript==
 
-enum FormatNameOptions {
-    CapitalizeOnlyFirstChar,
-    Lowercased
-}
-
 enum NameImportanceOptions {
     None,
     Low,
@@ -30,29 +25,34 @@ enum NameImportanceOptions {
 /** Turn debug mode on/off (true/false) */
 var debugMode: boolean = true;
 
-/** A collection of welcome greetings. {0} = name of the user */
-var welcomeGreetings: Array<IGreeting> = [
-    { message: "Hey {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "hey {0}", formatOption: FormatNameOptions.Lowercased },
-    { message: "sup {0}", formatOption: FormatNameOptions.Lowercased },
-    { message: "oi {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "Hai der, {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "hello {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar },
-    { message: "ayy {0}!", formatOption: FormatNameOptions.Lowercased },
-    { message: "Ermagerd! It's {0}", formatOption: FormatNameOptions.CapitalizeOnlyFirstChar }
+/** A collection of joining messages. {0} = placeholder for name of the user */
+var joinMessages: Array<string> = [
+    "Hey {0}",
+    "hey {0}",
+    "sup {0}",
+    "oi {0}",
+    "Hai der, {0}",
+    "hello {0}",
+    "ayy {0}!",
+    "Ermagerd! It's {0}"
 ];
 
-/** A collection of welcome back greetings. {0} = name of the user */
-var welcomeBackGreetings: Array<IGreeting> = [{ message: "Welcome back {0}" }];
+/** A collection of rejoining messages. {0} = placeholder for name of the user */
+var rejoinMessages: Array<string> = ["wb {0}"];
+
+/** A collection of messages for special users */
+var specialUserMessages: Array<ISpecialUser> = [
+    { id: "world", onJoining: "Wow hello world", onRejoining: "Woot welcome back world!" }
+];
 
 /** Ignore these users by name */
 var ignoredUsers: Array<string> = ["Guest"];
 
 /** The minimum amount of time (in milliseconds) before a greeting gets send */
-var greetingDelay: number = 2000;
+var messageDelay: number = 2000;
 
 /** The timespan (in milliseconds) in which the greeting will be send, after the delay */
-var greetingMaxTimespan: number = 18000;
+var messageMaxTimespan: number = 18000;
 
 /** Characters that can be removed from a name */
 var trimmableCharacters: Array<string> = ["-", "_", "=", ".", ":", "[", "]", "<", ">" ];
@@ -76,10 +76,10 @@ class UserCollection {
             if (!this.userExists(user.id)) {
                 this.users.push(user);
                 logToConsole("Succesfully added {0} ({1})".format(user.name.fullName, user.id));
-                user.greet(welcomeGreetings);
+                user.message(joinMessages);
             } else {
                 // TODO: Finish other code first
-                //user.greet(welcomeBackGreetings);
+                //user.message(rejoinMessages);
             }
         } else {
             logToConsole("{0} is not allowed to be added".format(user.name.fullName));
@@ -118,6 +118,7 @@ class User {
     constructor(id: string, name: string) {
         this.id = id;
         this.name = new Name(name);
+        this.messageName = formatName(this.name);
         this.active = true;
     }
 
@@ -125,24 +126,25 @@ class User {
 
     name: IName;
 
+    messageName: string;
+
     active: boolean;
 
     /**
      * Greets an user
-     * @param greetings Array of possible greetings
+     * @param messages Array of possible greetings
      */
-    greet(greetings: Array<IGreeting>): void {
+    message(messages: Array<string>): void {
         // Determine timeout in ms
-        var timeout: number = greetingDelay + (Math.random() * greetingMaxTimespan);
+        var timeout: number = messageDelay + (Math.random() * messageMaxTimespan);
         window.setTimeout(() => {
             // First check if user is still in the room, would be silly if not!
             if (this.isStillInRoom()) {
-                logToConsole("Greeting {0} ({1})".format(this.name.fullName, this.id));
+                logToConsole("Messaging {0} ({1})".format(this.name.fullName, this.id));
 
                 // Pick a greeting and send it
-                var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-                var outputName: string = formatName(this.name, greetingMessage.formatOption);
-                sendChatMessage(greetingMessage.message.format(outputName));
+                var message = messages[Math.floor(Math.random() * messages.length)];
+                sendChatMessage(message.format(this.messageName));
             }
         }, timeout);
     }
@@ -165,14 +167,8 @@ class User {
 /////                    GREETING                     /////
 ///////////////////////////////////////////////////////////
 
-/** Greeting interface */
-interface IGreeting {
-    message: string;
-    formatOption?: FormatNameOptions;
-}
-
-/** User greeting interface (UNUSED YET) */
-interface IUserGreeting {
+/** User messaging interface (UNUSED YET) */
+interface ISpecialUser {
     id: string;
     onJoining: string;
     onRejoining: string;
@@ -429,20 +425,12 @@ function getUserData(query: string): JQueryXHR {
 ///////////////////////////////////////////////////////////
 /////                  NAME FORMATTING                /////
 ///////////////////////////////////////////////////////////
-function formatName(name: IName, option?: FormatNameOptions): string {
+function formatName(name: IName): string {
     // Get all the parts that we'll work with
     var nameParts = getSignificantNameParts(name);
     
     // Join all parts
-    var nameAsString = nameParts.map(x => x.value).join(" ");
-    switch (option) {
-        case FormatNameOptions.CapitalizeOnlyFirstChar:
-            return nameAsString[0].toUpperCase() + nameAsString.substring(1).toLowerCase();
-        case FormatNameOptions.Lowercased:
-            return nameAsString.toLowerCase();
-        default:
-            return nameAsString;
-    }
+    return nameParts.map(x => x.value).join(" ");
 }
 
 function getSignificantNameParts(name: IName): INamePart[] {
