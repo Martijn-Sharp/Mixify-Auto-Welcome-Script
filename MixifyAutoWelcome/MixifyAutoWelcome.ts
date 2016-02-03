@@ -10,13 +10,6 @@
 // @description This script can be used on Mixify.com while streaming your DJ set. The main reason why I created this script is that I couldn't see every single person who enters the stream so I thought it could be nice if a script can announce in chat who entered the stream with a warm welcome message.
 // ==/UserScript==
 
-enum NameImportanceOptions {
-    None,
-    Low,
-    Moderate,
-    High
-}
-
 // TODO Split settings and implementation scripts
 ///////////////////////////////////////////////////////////
 /////                    SETTINGS                     /////
@@ -25,33 +18,28 @@ enum NameImportanceOptions {
 /** Turn debug mode on/off (true/false) */
 var debugMode: boolean = true;
 
-/** A collection of joining messages. {0} = placeholder for name of the user */
-var joinMessages: Array<string> = [
-    "Hey {0}",
-    "hey {0}",
-    "sup {0}",
-    "oi {0}",
-    "Hai der, {0}",
-    "hello {0}",
-    "ayy {0}!",
-    "Ermagerd! It's {0}"
-];
+/** Here are all the messages configured */
+var messageConfiguration: IMessageConfiguration =
+{
+    /** A collection of joining messages. {0} = placeholder for name of the user */
+    onJoining: ["Hey {0}", "hey {0}", "sup {0}", "oi {0}", "Hai der, {0}", "hello {0}", "ayy {0}!", "Ermagerd! It's {0}"],
 
-/** A collection of rejoining messages. {0} = placeholder for name of the user */
-var rejoinMessages: Array<string> = ["wb {0}"];
+    /** A collection of rejoining messages. {0} = placeholder for name of the user */
+    onRejoining: ["wb {0}"],
 
-/** A collection of messages for special users */
-var specialUserMessages: Array<ISpecialUser> = [
-    { id: "world", onJoining: "Wow hello world", onRejoining: "Woot welcome back world!" }
-];
+    /** A collection of messages for special users, based on ID and not on name */
+    specialUsers: [
+        { id: "world", onJoining: "Wow hello world", onRejoining: "Woot welcome back world!" }
+    ]
+}
 
 /** Ignore these users by name */
 var ignoredUsers: Array<string> = ["Guest"];
 
-/** The minimum amount of time (in milliseconds) before a greeting gets send */
+/** The minimum amount of time (in milliseconds) before a message gets send */
 var messageDelay: number = 2000;
 
-/** The timespan (in milliseconds) in which the greeting will be send, after the delay */
+/** The maximum timespan (in milliseconds) in which the message will be send, after the delay */
 var messageMaxTimespan: number = 18000;
 
 /** Characters that can be removed from a name */
@@ -76,10 +64,10 @@ class UserCollection {
             if (!this.userExists(user.id)) {
                 this.users.push(user);
                 logToConsole("Succesfully added {0} ({1})".format(user.name.fullName, user.id));
-                user.message(joinMessages);
+                user.message(messageConfiguration.onJoining);
             } else {
                 // TODO: Finish other code first
-                //user.message(rejoinMessages);
+                //user.message(messageConfiguration.onRejoining);
             }
         } else {
             logToConsole("{0} is not allowed to be added".format(user.name.fullName));
@@ -174,9 +162,21 @@ interface ISpecialUser {
     onRejoining: string;
 }
 
+interface IMessageConfiguration {
+    onJoining: Array<string>;
+    onRejoining: Array<string>;
+    specialUsers?: Array<ISpecialUser>;
+}
+
 ///////////////////////////////////////////////////////////
 /////                   NAME STUFF                    /////
 ///////////////////////////////////////////////////////////
+enum NameImportanceOptions {
+    None,
+    Low,
+    Moderate,
+    High
+}
 
 /** Name interface  */
 interface IName {
