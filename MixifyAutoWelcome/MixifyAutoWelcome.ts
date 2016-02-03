@@ -2,7 +2,7 @@
 /// <reference path="Typings/mixify.d.ts" />
 
 // ==UserScript==
-// @name        Fic's Mixify Auto Welcome Script (Martijn Remix)
+// @name        Fic's Mixify Auto Welcome Script (Tijn Remix)
 // @namespace   Booth
 // @include     http://www.mixify.com/*/live/*
 // @version     1.7.2
@@ -71,18 +71,18 @@ class UserCollection {
      * @param user User object
      */
     add(user: User): void {
-        logToConsole("Trying to add {0}".format(user.name));
+        logToConsole("Trying to add {0}".format(user.name.fullName));
         if (this.userIsAllowed(user)) {
             if (!this.userExists(user.id)) {
                 this.users.push(user);
-                logToConsole("Succesfully added {0} ({1})".format(user.name, user.id));
+                logToConsole("Succesfully added {0} ({1})".format(user.name.fullName, user.id));
                 user.greet(welcomeGreetings);
             } else {
                 // TODO: Finish other code first
                 //user.greet(welcomeBackGreetings);
             }
         } else {
-            logToConsole("{0} is not allowed to be added".format(user.name));
+            logToConsole("{0} is not allowed to be added".format(user.name.fullName));
         }
     }
 
@@ -92,7 +92,7 @@ class UserCollection {
      * @returns { User is allowed } 
      */
     private userIsAllowed(user: User): boolean {
-        var userAllowedByName: boolean = $.inArray(user.name, this.disallowedUsers) === -1;
+        var userAllowedByName: boolean = $.inArray(user.name.fullName, this.disallowedUsers) === -1;
         var userAllowedById: boolean = $.inArray(user.id, this.disallowedUsers) === -1;
         return userAllowedByName && userAllowedById;
     }
@@ -117,13 +117,13 @@ class UserCollection {
 class User {
     constructor(id: string, name: string) {
         this.id = id;
-        this.name = name;
+        this.name = new Name(name);
         this.active = true;
     }
 
     id: string;
 
-    name: string;
+    name: IName;
 
     active: boolean;
 
@@ -137,11 +137,11 @@ class User {
         window.setTimeout(() => {
             // First check if user is still in the room, would be silly if not!
             if (this.isStillInRoom()) {
-                logToConsole("Greeting {0} ({1})".format(this.name, this.id));
+                logToConsole("Greeting {0} ({1})".format(this.name.fullName, this.id));
 
                 // Pick a greeting and send it
                 var greetingMessage = greetings[Math.floor(Math.random() * greetings.length)];
-                var outputName: string = formatName(new Name(this.name), greetingMessage.formatOption);
+                var outputName: string = formatName(this.name, greetingMessage.formatOption);
                 sendChatMessage(greetingMessage.message.format(outputName));
             }
         }, timeout);
@@ -258,8 +258,11 @@ class NamePart implements INamePart {
     setImportance(): void {
         var importance: NameImportanceOptions;
 
-        // Name parts of 3 characters or less are either very important, or not at all
-        if (this.value.length <= 3) {
+        // Name parts of 1 characters are not important
+        if (this.value.length <= 1) {
+            importance = NameImportanceOptions.None;
+        } else if (this.value.length <= 3) {
+            // Name parts of 3 characters or less are either very important, or not at all
             if (this.value.toLowerCase() === "dj") {
                 // 'DJ' is usually an important part
                 importance = NameImportanceOptions.None;
