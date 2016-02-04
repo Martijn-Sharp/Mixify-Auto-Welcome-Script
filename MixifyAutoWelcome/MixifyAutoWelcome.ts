@@ -219,7 +219,11 @@ class Name implements IName {
 
     createNameParts(): void {
         this.parts = [];
+
+        // First trim the full name, then split it on space-character, then filter out all zero-length entries
         var parts = trimText(this.fullName, trimmableCharacters).split(" ").filter(x => x.length > 0);
+
+        // Process each part
         var position: number = 0;
         for (let part of parts) {
             var namePart: INamePart = new NamePart(part, position, this);
@@ -428,6 +432,25 @@ function getUserData(query: string): JQueryXHR {
 function formatName(name: IName): string {
     // Get all the parts that we'll work with
     var nameParts = getSignificantNameParts(name);
+
+    if (nameParts.length === 2) {
+        return nameParts[0].value;
+    }
+
+    if (nameParts.length > 2) {
+        if (nameParts.map(x => x.value).length / nameParts.length > 5) {
+            return nameParts.map(x => x.value[0].toUpperCase()).join();
+        }
+
+        var firstLargestPart: INamePart = nameParts[0];
+        for (let namePart of nameParts) {
+            if (namePart.value.length > firstLargestPart.value.length) {
+                firstLargestPart = namePart;
+            }
+        }
+
+        return firstLargestPart.value;
+    }
     
     // Join all parts
     return nameParts.map(x => x.value).join(" ");
@@ -481,7 +504,7 @@ function textIsUppercase(text: string): boolean {
         character = text.charAt(position);
 
         // If any character is a numeric, or matches a lowercase, then the text isn't fully uppercase
-        if ((character >= '0' && character <= '9') || character === character.toLowerCase()) {
+        if (isNumeric(character) || character === character.toLowerCase()) {
             return false;
         }
 
@@ -489,6 +512,15 @@ function textIsUppercase(text: string): boolean {
     }
 
     return true;
+}
+
+function isLetter(character: string): boolean {
+    // Cheeky way to determine if it's a letter
+    return character.toLowerCase() != character.toUpperCase();
+}
+
+function isNumeric(character: string): boolean {
+    return character >= '0' && character <= '9';
 }
 
 /**
