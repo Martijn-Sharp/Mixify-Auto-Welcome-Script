@@ -189,7 +189,7 @@ interface IName {
 class Name implements IName {
     constructor(fullName) {
         this.fullName = fullName;
-        this.setCapsAreMeaningful();
+        this.capsAreMeaningful = this.setCapsAreMeaningful(fullName);
         this.createNameParts();
     }
 
@@ -201,28 +201,33 @@ class Name implements IName {
      * Determines if uppercase characters mean anything in the grand scheme of things
      * @param text The text
      */
-    setCapsAreMeaningful() : void {
+    setCapsAreMeaningful(fullName: string) : boolean {
         var amountOfCaps: number = 0;
         var position: number = 0;
         var character: string;
-        while (position <= this.fullName.length) {
-            character = this.fullName.charAt(position);
-            if (textIsUppercase(character)) {
+        while (position < fullName.length) {
+            character = fullName.charAt(position);
+            if (!isNumeric(character) && isUpperCase(character)) {
                 amountOfCaps++;
             }
 
             position++;
         }
 
-        this.capsAreMeaningful = amountOfCaps / this.fullName.length < 0.5;
+        return amountOfCaps / fullName.length <= 0.5;
     }
 
     createNameParts(): void {
         this.parts = [];
 
         // First trim the full name, then split it on space-character, then filter out all zero-length entries
-        var parts = trimText(this.fullName, trimmableCharacters).split(" ").filter(x => x.length > 0);
-
+        var trimmedParts = trimText(this.fullName, trimmableCharacters).split(" ").filter(x => x.length > 0);
+        var parts: Array<string> = [];
+        
+        for (let trimmedPart of trimmedParts) {
+            this.splitPartsOnCapitals(trimmedPart).filter(x => x.length > 0).map(x => parts.push(x));
+        }
+        
         // Process each part
         var position: number = 0;
         for (let part of parts) {
@@ -230,6 +235,52 @@ class Name implements IName {
             this.parts.push(namePart);
             position++;
         }
+    }
+
+    splitPartsOnCapitals(part: string) : Array<string> {
+        var results: Array<string> = [];
+        var remaining: string = part;
+        var consecutiveCaps: number = 0;
+        var position: number = 0;
+        var character: string;
+        while (remaining.length > 0) {
+            if (position === remaining.length) {
+                results.push(remaining);
+                remaining = "";
+            }
+
+            character = remaining.charAt(position);
+            if (!isNumeric(character) && isUpperCase(character)) {
+                if (position !== 0 && consecutiveCaps === 0) {
+                    // Add new part
+                    results.push(remaining.substring(0, position));
+
+                    // Reset
+                    remaining = remaining.substring(position, remaining.length);
+                    position = 0;
+                    consecutiveCaps = 0;
+                } else {
+                    position++;
+                    consecutiveCaps++;
+                }
+                
+            } else {
+                if (consecutiveCaps > 1) {
+                    var adjustedPosition: number = position - 1;
+                    results.push(remaining.substring(0, adjustedPosition));
+
+                    // Reset
+                    remaining = remaining.substring(adjustedPosition, remaining.length);
+                    position = 0;
+                } else {
+                    position++;
+                }
+
+                consecutiveCaps = 0;
+            }
+        }
+
+        return results;
     }
 }
 
@@ -504,7 +555,7 @@ function textIsUppercase(text: string): boolean {
         character = text.charAt(position);
 
         // If any character is a numeric, or matches a lowercase, then the text isn't fully uppercase
-        if (isNumeric(character) || character === character.toLowerCase()) {
+        if (isNumeric(character) || isLowerCase(character)) {
             return false;
         }
 
@@ -516,11 +567,19 @@ function textIsUppercase(text: string): boolean {
 
 function isLetter(character: string): boolean {
     // Cheeky way to determine if it's a letter
-    return character.toLowerCase() != character.toUpperCase();
+    return character.toLowerCase() !== character.toUpperCase();
 }
 
 function isNumeric(character: string): boolean {
-    return character >= '0' && character <= '9';
+    return (character >= "0" && character <= "9");
+}
+
+function isUpperCase(character: string): boolean {
+    return character === character.toUpperCase();
+}
+
+function isLowerCase(character: string): boolean {
+    return character === character.toLowerCase();
 }
 
 /**
