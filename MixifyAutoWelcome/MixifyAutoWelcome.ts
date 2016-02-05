@@ -484,6 +484,10 @@ function formatName(name: IName): string {
     // Get all the parts that we'll work with
     var nameParts = getSignificantNameParts(name);
 
+    if (nameParts.every(x => x.importance === NameImportanceOptions.None)) {
+        return name.fullName;
+    }
+
     if (nameParts.length === 2) {
         return nameParts[0].value;
     }
