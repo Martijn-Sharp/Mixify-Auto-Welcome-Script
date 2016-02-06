@@ -108,6 +108,7 @@ class User {
         this.name = new Name(name);
         this.messageName = formatName(this.name);
         this.active = true;
+        this.isDj = $("#djSilhouette").data("querystring").split("=")[1] === this.id;
     }
 
     id: string;
@@ -117,6 +118,8 @@ class User {
     messageName: string;
 
     active: boolean;
+
+    isDj: boolean;
 
     /**
      * Greets an user
@@ -142,6 +145,10 @@ class User {
      * @returns { user is in the room } 
      */
     isStillInRoom(): boolean {
+        if (this.isDj) {
+            return true;
+        }
+
         var searchResult = $('#avatar_{0}'.format(this.id));
         if (searchResult.length === 0) {
             this.active = false;
@@ -380,6 +387,11 @@ if ($('#eventBroadcaster').length > 0) {
     } else {
         retrieveAttendees();
     }
+
+    var djQuery = $("#djSilhouette").data("querystring");
+    var djId = djQuery.split("=")[1];
+    var djName = getUsernameFromUserData(djQuery);
+    userList.add(new User(djId, djName));
     
     // Everytime the DOM tree gets modified, fire this event
     // TODO Add NodeRemoved to detect a user that leaves
@@ -458,7 +470,7 @@ function getUsernameFromUserData(query: string): string {
 
     // Parse the response for the username
     var responseText = $(data.responseText);
-    var usernameElement = $(responseText).find('.username');
+    var usernameElement = $(responseText).find(".username");
     if (usernameElement.length === 0) {
         logToConsole("No username found for user using query {0}".format(query));
     }
