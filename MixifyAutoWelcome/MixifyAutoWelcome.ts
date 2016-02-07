@@ -520,8 +520,8 @@ function formatName(name: IName): string {
     }
 
     if (nameParts.length > 2) {
-        if (nameParts.map(x => x.value).length / nameParts.length > 5) {
-            return nameParts.map(x => x.value[0].toUpperCase()).join();
+        if (nameParts.join("").length / nameParts.length > 5) {
+            return nameParts.map(x => x.value[0].toUpperCase()).join("");
         }
 
         var firstLargestPart: INamePart = nameParts[0];
