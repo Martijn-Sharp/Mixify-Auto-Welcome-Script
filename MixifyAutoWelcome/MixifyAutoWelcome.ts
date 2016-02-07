@@ -189,6 +189,7 @@ enum NameImportanceOptions {
 interface IName {
     fullName: string;
     parts: INamePart[];
+    fullParts: INamePart[];
     capsAreMeaningful: boolean;
 }
 
@@ -202,6 +203,7 @@ class Name implements IName {
 
     fullName: string;
     parts: INamePart[];
+    fullParts: INamePart[];
     capsAreMeaningful: boolean;
 
     /**
@@ -224,20 +226,31 @@ class Name implements IName {
         return amountOfCaps / fullName.length <= 0.5;
     }
 
+    /** This extracts name parts out of full name, both parts with and without capital-processing */
     createNameParts(): void {
         this.parts = [];
+        this.fullParts = [];
 
         // First trim the full name, then split it on space-character, then filter out all zero-length entries
         var trimmedParts = trimText(this.fullName, trimmableCharacters).split(" ").filter(x => x.length > 0);
         var parts: Array<string> = [];
         
+        // Iterate over all the trimmed parts
+        var position: number = 0;
         for (let trimmedPart of trimmedParts) {
+            // Split each part on capitals and push them to the 'parts' collection
             this.splitPartsOnCapitals(trimmedPart).filter(x => x.length > 0).map(x => parts.push(x));
+
+            // Create a full name part and push it to the collection;
+            var fullPart: INamePart = new NamePart(trimmedPart, position, this);
+            this.fullParts.push(fullPart);
+            position++;
         }
         
-        // Process each part
-        var position: number = 0;
+        // Iterate over all the parts
+        position = 0;
         for (let part of parts) {
+            // Create a namepart and push it to the collection
             var namePart: INamePart = new NamePart(part, position, this);
             this.parts.push(namePart);
             position++;
@@ -494,10 +507,12 @@ function getUserData(query: string): JQueryXHR {
 ///////////////////////////////////////////////////////////
 function formatName(name: IName): string {
     // Get all the parts that we'll work with
-    var nameParts = getSignificantNameParts(name);
+    var nameParts = getSignificantNameParts(name.parts);
 
+    // If all parts have 'none' importance, we'll try to get significant name parts using the full parts
+    // These don't have the capital processed parts
     if (nameParts.every(x => x.importance === NameImportanceOptions.None)) {
-        return name.fullName;
+        nameParts = getSignificantNameParts(name.fullParts);
     }
 
     if (nameParts.length === 2) {
@@ -523,24 +538,24 @@ function formatName(name: IName): string {
     return nameParts.map(x => x.value).join(" ");
 }
 
-function getSignificantNameParts(name: IName): INamePart[] {
+function getSignificantNameParts(nameParts: INamePart[]): INamePart[] {
     // If there are any high important parts, return the first one
     // TODO: Determine if there are better alternatives to returning the first item
-    var highImportance = name.parts.filter(value => value.importance === NameImportanceOptions.High);
+    var highImportance = nameParts.filter(value => value.importance === NameImportanceOptions.High);
     if (highImportance.length > 0) {
         return [highImportance[0]];
     }
 
     // If there's only 1 moderate important part, return that one
-    var moderateImportance = name.parts.filter(value => value.importance === NameImportanceOptions.Moderate);
+    var moderateImportance = nameParts.filter(value => value.importance === NameImportanceOptions.Moderate);
     if (moderateImportance.length === 1) {
         return moderateImportance;
     }
 
     // If the amount of low importance parts is higher than 0 and lower than the amount of moderate parts, then return low + moderate parts
-    var lowImportance = name.parts.filter(value => value.importance === NameImportanceOptions.Low);
+    var lowImportance = nameParts.filter(value => value.importance === NameImportanceOptions.Low);
     if (lowImportance.length > 0 && lowImportance.length < moderateImportance.length) {
-        return name.parts.filter(value => value.importance === NameImportanceOptions.Moderate || value.importance === NameImportanceOptions.Low);
+        return nameParts.filter(value => value.importance === NameImportanceOptions.Moderate || value.importance === NameImportanceOptions.Low);
     }
 
     // If at this point there are moderate parts, return those
@@ -553,7 +568,7 @@ function getSignificantNameParts(name: IName): INamePart[] {
     }
 
     // Return whatever is left
-    return name.parts.filter(value => value.importance === NameImportanceOptions.None);
+    return nameParts;
 }
 
 ///////////////////////////////////////////////////////////
