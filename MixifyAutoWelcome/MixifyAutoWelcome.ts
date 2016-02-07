@@ -548,7 +548,7 @@ function getSignificantNameParts(name: IName): INamePart[] {
         return moderateImportance;
     }
 
-    if (moderateImportance.length !== 0) {
+    if (lowImportance.length !== 0) {
         return lowImportance;
     }
 
